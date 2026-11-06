@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>狼人杀公平发牌器</title>
+<style>
+  :root{
+    --bg:#0e1015; --bg2:#0a0c10;
+    --panel:#161922; --panel2:#1b2030; --panel3:#222839;
+    --border:#272d3d; --border2:#333b4f;
+    --text:#e7eaf3; --muted:#8b93a7; --faint:#646c80;
+    --red:#e5484d; --gold:#f0b429; --blue:#5aa9e6; --purple:#b17cff;
+    --green:#46c48a;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(229,72,77,.10), transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, rgba(90,169,230,.08), transparent 60%),
+      linear-gradient(180deg,var(--bg),var(--bg2));
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    min-height:100vh; line-height:1.55;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:36px 18px 80px}
+  header{text-align:center;margin-bottom:26px}
+  .logo{font-size:40px;line-height:1;filter:drop-shadow(0 6px 18px rgba(229,72,77,.45))}
+  h1{font-size:26px;margin:10px 0 4px;letter-spacing:.5px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0}
+  .sub b{color:var(--gold);font-weight:600}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px;margin-bottom:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .row{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+  .row.col{flex-direction:column;align-items:stretch;gap:8px}
+  .row:last-child{margin-bottom:0}
+  label{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+  .hidden{display:none!important}
+
+  select,input,textarea{
+    width:100%;background:var(--bg2);color:var(--text);
+    border:1px solid var(--border2);border-radius:11px;
+    padding:11px 13px;font-size:14px;font-family:inherit;outline:none;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  select:focus,input:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(229,72,77,.15)}
+  textarea{min-height:118px;resize:vertical;font-family:"SFMono-Regular",Consolas,monospace;line-height:1.7}
+  .grow{flex:1}
+
+  .seg{display:flex;background:var(--bg2);border:1px solid var(--border2);border-radius:11px;padding:4px;gap:4px;width:100%}
+  .seg button{
+    flex:1;background:transparent;border:0;color:var(--muted);font-family:inherit;
+    font-size:13px;font-weight:600;padding:9px 8px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  .seg button.active{background:linear-gradient(180deg,#2a3145,#232a3c);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  .seg button:hover:not(.active){color:var(--text)}
+
+  .composition{display:flex;flex-wrap:wrap;gap:7px;margin:-4px 0 16px}
+  .chip{font-size:12px;color:var(--muted);background:var(--panel3);border:1px solid var(--border);
+    padding:4px 9px;border-radius:20px}
+  .count{font-weight:700;font-size:12.5px}
+  .count.ok{color:var(--green)}
+  .count.bad{color:var(--red)}
+
+  button.primary{
+    width:100%;border:0;cursor:pointer;font-family:inherit;
+    background:linear-gradient(180deg,#f2565b,#d63b41);color:#fff;
+    font-size:15.5px;font-weight:700;letter-spacing:.5px;
+    padding:14px;border-radius:12px;
+    box-shadow:0 8px 22px rgba(229,72,77,.35), inset 0 1px 0 rgba(255,255,255,.18);
+    transition:transform .1s, box-shadow .15s, opacity .15s;
+  }
+  button.primary:hover{box-shadow:0 10px 26px rgba(229,72,77,.5)}
+  button.primary:active{transform:translateY(1px)}
+  button.primary:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+  .ghost{
+    background:var(--panel3);border:1px solid var(--border2);color:var(--text);
+    font-family:inherit;font-size:13px;font-weight:600;padding:10px 15px;border-radius:10px;
+    cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px;
+  }
+  .ghost:hover{border-color:var(--border2);background:#283046}
+  .ghost.gold{color:var(--gold);border-color:rgba(240,180,41,.4)}
+  .ghost.gold:hover{background:rgba(240,180,41,.1)}
+
+  .step-tag{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
+    color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+  .step-tag .n{width:20px;height:20px;border-radius:50%;background:rgba(240,180,41,.15);
+    border:1px solid rgba(240,180,41,.4);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+
+  .hash-box{
+    display:flex;gap:10px;align-items:stretch;
+    background:var(--bg2);border:1px dashed var(--border2);border-radius:12px;padding:12px;margin-bottom:8px;
+  }
+  .hash{
+    flex:1;font-family:"SFMono-Regular",Consolas,monospace;font-size:13px;color:var(--gold);
+    word-break:break-all;letter-spacing:.5px;line-height:1.5;
+  }
+  .hash-note{font-size:12.5px;color:var(--muted);margin:0 0 16px}
+  .hash-note b{color:var(--text)}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+
+  .reveal-wrap{margin-top:18px;border-top:1px solid var(--border);padding-top:18px}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  th{text-align:left;color:var(--faint);font-size:12px;font-weight:600;letter-spacing:.5px;
+    padding:8px 10px;border-bottom:1px solid var(--border)}
+  td{padding:10px;border-bottom:1px solid rgba(39,45,61,.6)}
+  tr:last-child td{border-bottom:0}
+  td.seat{color:var(--faint);font-variant-numeric:tabular-nums;width:52px}
+  td.role{font-weight:600}
+  .fdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .fname{font-size:12.5px;color:var(--muted)}
+
+  .verify{display:flex;align-items:center;gap:10px;margin-top:16px;padding:12px 14px;border-radius:11px;font-size:13.5px;font-weight:600}
+  .verify.ok{background:rgba(70,196,138,.1);border:1px solid rgba(70,196,138,.35);color:var(--green)}
+  .verify.bad{background:rgba(229,72,77,.1);border:1px solid rgba(229,72,77,.4);color:var(--red)}
+  .verify .ico{font-size:16px}
+
+  .import-card .row{margin-bottom:0}
+  .file-label{display:block;cursor:pointer}
+  .file-label input{display:none}
+  .file-btn{display:inline-flex;align-items:center;gap:8px;background:var(--panel3);
+    border:1px solid var(--border2);color:var(--text);padding:11px 16px;border-radius:11px;
+    font-size:13px;font-weight:600}
+  .file-btn:hover{background:#283046}
+
+  footer{text-align:center;color:var(--faint);font-size:12px;margin-top:30px;line-height:1.8}
+  footer a{color:var(--muted)}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+    background:#232a3c;border:1px solid var(--border2);color:var(--text);padding:11px 20px;
+    border-radius:11px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;
+    transition:.25s;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .hint{font-size:12px;color:var(--faint);margin-top:6px}
+  .board-meta{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+  @media(max-width:560px){
+    .wrap{padding:24px 12px 60px}
+    .row{flex-direction:column;align-items:stretch;gap:8px}
+    h1{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🐺</div>
+    <h1>狼人杀公平发牌器</h1>
+    <p class="sub">均匀随机 · <b>承诺哈希</b> · 开牌可校验 · 零依赖离线可用</p>
+  </header>
+
+  <!-- 设置 -->
+  <main class="card">
+    <div class="row">
+      <label style="min-width:78px">选择板子</label>
+      <select id="board" class="grow"></select>
+    </div>
+
+    <div id="customWrap" class="row col hidden">
+      <label>自定义身份构成</label>
+      <input id="customRoles" placeholder="例：狼人×4 预言家 女巫 猎人 白痴 村民×4">
+      <div class="hint">支持 ×N / N× / 后缀数字 等写法；座位模式下顺序即座位 1→N。</div>
+    </div>
+
+    <div class="row">
+      <label style="min-width:78px">发牌模式</label>
+      <div class="seg" id="modeSeg">
+        <button data-mode="roles" class="active">角色随机分玩家</button>
+        <button data-mode="seats">玩家随机坐固定座位</button>
+      </div>
+    </div>
+
+    <div id="composition" class="composition"></div>
+
+    <div class="row col">
+      <label>玩家名单 <span id="playerCount" class="count"></span></label>
+      <textarea id="players" placeholder="每行一个玩家名（人数须等于身份数）"></textarea>
+    </div>
+
+    <button id="dealBtn" class="primary" disabled>🎲 发牌并公示承诺哈希</button>
+  </main>
+
+  <!-- 结果 -->
+  <section id="resultCard" class="card hidden">
+    <div class="step-tag"><span class="n">1</span> 公示承诺哈希（开牌前发给所有人）</div>
+    <div class="hash-box">
+      <div class="hash" id="hashText">—</div>
+      <button class="ghost" id="copyHash">复制</button>
+    </div>
+    <p class="hash-note">承诺 = <b>SHA-256(nonce | 发牌内容)</b>。开牌前只公示这串，任何人都无法反推结果；开牌后可用 <b>同名 .json 密封文件</b> 校验是否被篡改。</p>
+
+    <div class="actions">
+      <button class="ghost" id="downloadSeal">⬇ 下载密封文件 .json</button>
+      <button class="ghost gold" id="revealBtn">👁 开牌并校验</button>
+      <button class="ghost" id="resetBtn">↺ 重新发牌</button>
+    </div>
+
+    <div id="revealWrap" class="reveal-wrap hidden">
+      <div id="tableWrap"></div>
+      <div id="verifyBox" class="verify ok"><span class="ico">✓</span><span>校验通过：结果与公示承诺一致，未被篡改</span></div>
+    </div>
+  </section>
+
+  <!-- 导入校验 -->
+  <section class="card import-card">
+    <label style="display:block;margin-bottom:10px">核对别人的密封文件</label>
+    <div class="row">
+      <label class="file-label">
+        <span class="file-btn">📂 选择 ww_deal_*.json</span>
+        <input type="file" id="importFile" accept="application/json,.json">
+      </label>
+      <span style="font-size:12.5px;color:var(--faint)">导入后自动复算哈希并展示结果，用于验证发牌者没作弊。</span>
+    </div>
+    <div id="importResult" class="hidden" style="margin-top:16px">
+      <div id="importTable"></div>
+      <div id="importVerify" class="verify ok"></div>
+    </div>
+  </section>
+
+  <footer>
+    算法与 <code>dealer.py</code> 完全一致 · Fisher–Yates + 系统熵 + SHA-256 承诺<br>
+    密封文件可与命令行版 <code>python dealer_cli.py reveal</code> 互相校验 · MIT License
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== 内置数据（构建时注入） ===================== */
+const BOARDS = {"9人 预女猎": ["狼人", "狼人", "狼人", "预言家", "女巫", "猎人", "村民", "村民", "村民"], "10人 预女猎": ["狼人", "狼人", "狼人", "预言家", "女巫", "猎人", "村民", "村民", "村民", "村民"], "12人 预女猎白": ["狼人", "狼人", "狼人", "狼人", "预言家", "女巫", "猎人", "白痴", "村民", "村民", "村民", "村民"], "12人 狼王守卫": ["狼人", "狼人", "狼人", "狼王", "预言家", "女巫", "猎人", "守卫", "村民", "村民", "村民", "村民"], "12人觉醒孤独少女": ["预言家", "女巫", "猎人", "摄梦人", "狼人", "狼人", "狼人", "狼人", "村民", "村民", "村民", "觉醒孤独少女"], "迷雾装甲": ["装甲狼", "猎人", "村民", "村民", "村民", "村民", "机械狼", "守卫", "女巫", "狼人", "狼人", "通灵师"], "12人预女猎白混": ["预言家", "女巫", "猎人", "白神", "狼人", "狼人", "狼人", "狼人", "村民", "村民", "村民", "混子"], "风声谍影": ["觉醒石像鬼", "觉醒石像鬼", "预言家", "通灵师", "熊", "女巫", "猎人", "河豚", "摄梦人", "白猫"], "12人狼王摄梦人": ["预言家", "女巫", "摄梦人", "猎人", "狼王", "狼人", "狼人", "狼人", "村民", "村民", "村民", "村民"], "迷雾鸦影": ["狼鸦之爪", "狼人", "狼人", "狼人", "炼金魔女", "预言家", "摄梦人", "白神", "村民", "村民", "村民", "村民"], "12人画皮食尸鬼": ["狼人", "狼人", "噩梦之影", "画皮", "通灵师", "女巫", "食尸鬼", "摄梦人", "村民", "村民", "村民", "村民"], "12人鬼魂新娘": ["村民", "村民", "村民", "村民", "村民", "预言家", "女巫", "猎人", "守卫", "狼人", "狼人", "狼人", "盗贼", "鬼魂新娘"], "机械狼通灵师": ["通灵师", "女巫", "猎人", "守卫", "狼人", "狼人", "机械狼", "村民", "村民", "村民"], "时波之乱": ["预言家", "女巫", "守卫", "白昼学者", "狼人", "狼人", "狼人", "寂夜导师", "村民", "村民", "村民", "村民"], "动物梦境II": ["兔子", "兔子", "兔子", "兔子", "熊", "企鹅", "狐狸", "乌鸦", "狼人", "狼人", "狼王", "狼王"], "云端探查": ["预言家", "觉醒预言家", "魔镜少女", "纯白之女", "女巫", "猎人", "守墓人", "孤独少女", "狼美人", "隐狼", "觉醒隐狼", "咒狐"], "黑商狼兄弟": ["预言家", "女巫", "守卫", "黑市商人", "狼人", "狼人", "狼兄", "狼弟", "村民", "村民", "村民", "村民"], "觉醒狼王": ["预言家", "女巫", "奇迹商人", "摄梦人", "觉醒狼王", "狼人", "狼人", "狼人", "村民", "村民", "村民", "村民"], "邪恶商人": ["预言家", "女巫", "猎人", "守卫", "邪恶商人", "狼人", "狼人", "狼人", "村民", "村民", "村民", "村民"], "谍报风云": ["通灵师", "女巫", "摄梦人", "侦察者", "刺客", "间谍", "狼人", "狼人", "村民", "村民", "村民", "村民"], "黑蝙蝠": ["预言家", "女巫", "猎人", "守卫", "狼人", "狼人", "狼人", "黑蝙蝠", "村民", "村民", "村民", "村民"], "盗宝大师": ["通灵师", "女巫", "猎人", "摄梦人", "狼枪", "盗宝", "狼人", "狼人", "村民", "村民", "村民", "村民"], "石像鬼守墓人": ["预言家", "女巫", "猎人", "守墓人", "狼人", "狼人", "狼人", "石像鬼", "村民", "村民", "村民", "村民"], "深梦迷航II": ["猎人", "村民", "村民", "村民", "村民", "炼金魔女", "觉醒摄梦人", "狼人", "狼人", "狼鸦之爪", "预言家", "噩梦之影"], "觉醒石像鬼": ["村民", "村民", "村民", "村民", "女巫", "预言家", "守卫", "觉醒石像鬼", "猎人", "狼人", "狼人", "守墓人"], "觉醒女巫": ["狼人", "狼人", "狼人", "村民", "村民", "村民", "村民", "觉醒女巫", "守卫", "觉醒狼王", "预言家", "猎人"], "狼王魔术师": ["预言家", "女巫", "魔术师", "猎人", "狼王", "狼人", "狼人", "狼人", "村民", "村民", "村民", "村民"], "盗贼丘比特": ["预言家", "女巫", "猎人", "白痴", "村民", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼王", "盗贼", "丘比特"], "狼美人骑士": ["预言家", "村民", "村民", "村民", "村民", "狼美人", "守卫", "狼人", "狼人", "狼人", "骑士", "女巫"], "真假美猴王": ["摄梦人", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼王", "齐天大圣", "暗黑悟空", "天命圣僧", "女巫"], "狼魂烛影": ["村民", "村民", "村民", "村民", "剪烛人", "烟烛", "烟烛", "烟烛", "摄梦人", "女巫", "保佑者", "毒魂烛台"], "侍女觉女": ["狼美人", "蚀日侍女", "村民", "村民", "村民", "狼人", "狼人", "流光伯爵", "猎人", "预言家", "觉醒孤独少女", "觉醒女巫"], "月灵狼": ["狼人", "狼人", "村民", "村民", "村民", "村民", "名媛", "噩梦之影", "女巫", "月灵", "骑士", "预言家"], "灯影预言家官混": ["预言家", "女巫", "摄梦人", "骑士", "狼人", "狼人", "狼人", "食梦貘", "灯影预言家", "村民", "村民", "村民"], "丘比特奇缘": ["预言家", "女巫", "猎人", "白痴", "摄梦人", "乌鸦", "狼王", "噩梦之影", "狼巫", "蚀时狼妃", "丘比特", "觉醒孤独少女"], "青丘夜影": ["狼人", "狼人", "狼人", "村民", "村民", "村民", "村民", "女巫", "九尾", "觉醒守卫", "预言家", "白泽"], "暗夜星辰": ["村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "守卫", "觉醒猎人", "女巫", "觉醒狼美人", "预言家"], "诡术之境": ["村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "定序王子", "魔术师", "诡术师", "女巫", "预言家"], "孤独少女影子复仇者": ["女巫", "守卫", "影子", "村民", "村民", "村民", "狼人", "狼人", "狼人", "孤独少女", "预言家", "复仇者"], "寻香识命": ["觉醒预言家", "女巫", "猎人", "守卫", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "寻香魅影"], "捣蛋鬼": ["预言家", "女巫", "猎人", "守卫", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "捣蛋鬼"], "觉醒之夜": ["预言家", "女巫", "猎魔人", "觉醒愚者", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "夜之贵族"], "误闯天家": ["预言家", "女巫", "白神", "摄梦人", "骑士", "村民", "村民", "村民", "狼人", "狼人", "狼人", "狼人"], "12人机械狼通灵师": ["通灵师", "女巫", "猎人", "守卫", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "机械狼"], "觉醒骑士": ["觉醒守卫", "村民", "村民", "村民", "村民", "预言家", "觉醒狼美人", "狼人", "狼人", "狼人", "女巫", "觉醒骑士"], "唯邻是从": ["猎人", "狼人", "狼人", "村民", "村民", "村民", "村民", "村民", "女巫", "预言家", "守卫", "狼王"], "永序之轮": ["狼人", "狼人", "狼人", "女巫", "村民", "村民", "村民", "村民", "守卫", "定序王子", "预言家", "蚀时狼妃"], "双身份": ["预言家", "女巫", "猎人", "守卫", "村民", "村民", "村民", "村民", "村民", "复制人", "狼人", "潜行狼"], "猎日逐光": ["村民", "村民", "村民", "村民", "蚀日侍女", "女巫", "狼人", "狼人", "狼人", "流光伯爵", "摄梦人", "预言家"], "12人魅魔盗贼": ["村民", "村民", "村民", "村民", "村民", "预言家", "女巫", "猎人", "守卫", "狼人", "狼人", "狼人", "魅魔", "盗贼"], "觉醒隐狼10人": ["猎人", "觉醒隐狼", "村民", "村民", "村民", "魔镜少女", "狼人", "狼人", "守卫", "女巫"], "神探伪装者": ["狼人", "狼人", "狼人", "伪装者", "村民", "村民", "村民", "村民", "神探", "女巫", "守卫", "猎魔人"], "侦探伪装者2.0": ["村民", "村民", "村民", "村民", "女巫", "守卫", "伪装者", "猎魔人", "狼人", "狼人", "变化者", "侦探"], "恶影蜂猎": ["蜂之狂猎", "机械狼", "狼人", "狼人", "女巫", "通灵师", "村民", "村民", "村民", "村民", "恶灵骑士", "守卫"], "盗宝大师2.0": ["村民", "村民", "村民", "村民", "通灵师", "狼王", "摄梦人", "毒师", "狼人", "狼人", "盗宝", "猎人"], "觉醒石像鬼10人": ["预言家", "女巫", "守卫", "守墓人", "村民", "村民", "村民", "村民", "狼人", "觉醒石像鬼"], "连环之影": ["狼人", "狼人", "寻香魅影", "黑暗镜", "觉醒预言家", "女巫", "摄梦人", "光明镜", "村民", "村民", "村民", "村民"], "魂归来兮": ["狼人", "狼人", "狼人", "狼妖", "预言家", "女巫", "猎人", "摄梦人", "村民", "村民", "村民", "暗恋者"], "杯酒入梦": ["狼人", "狼人", "狼人", "幻术师", "预言家", "女巫", "猎魔人", "摄梦人", "村民", "村民", "村民", "村民"], "狼美人河豚": ["狼人", "狼人", "狼人", "狼美人", "预言家", "女巫", "河豚", "守卫", "村民", "村民", "村民", "村民"], "间谍殉道者": ["狼人", "狼人", "狼人", "间谍", "预言家", "女巫", "猎人", "殉道者", "村民", "村民", "村民", "村民"], "异怪狂响": ["通灵师", "女巫", "守卫", "剧作家", "村民", "村民", "村民", "村民", "狼人", "狼人", "狼人", "异怪王子"], "暗恋者影子复仇者": ["预言家", "女巫", "守卫", "村民", "村民", "村民", "狼人", "狼人", "狼人", "影子", "复仇者", "暗恋者"], "孤注一掷": ["预言家", "女巫", "摄梦人", "猎人", "村民", "村民", "村民", "村民", "典狱长", "狼人", "狼人", "狼人"], "无目之城": ["预言家", "女巫", "猎魔人", "流光伯爵", "村民", "村民", "村民", "村民", "狼人", "狼鸦之爪", "蚀日侍女", "寂夜导师"], "天眼祈求者": ["天眼", "女巫", "猎人", "祈求者", "村民", "村民", "村民", "村民", "恶魔", "狼人", "狼人", "狼人"], "风声谍影（12人）": ["预言家", "魔镜少女", "熊", "女巫", "猎人", "河豚", "摄梦人", "白猫", "觉醒石像鬼", "觉醒石像鬼", "觉醒隐狼", "孤独少女"]};
+const FACTION = {"狼人": "狼人阵营", "预言家": "好人阵营", "女巫": "好人阵营", "猎人": "好人阵营", "村民": "好人阵营", "白痴": "好人阵营", "狼王": "狼人阵营", "守卫": "好人阵营", "摄梦人": "好人阵营", "觉醒孤独少女": "变动阵营", "装甲狼": "狼人阵营", "机械狼": "狼人阵营", "通灵师": "好人阵营", "白神": "好人阵营", "混子": "变动阵营", "觉醒石像鬼": "狼人阵营", "熊": "好人阵营", "河豚": "好人阵营", "白猫": "好人阵营", "狼鸦之爪": "狼人阵营", "炼金魔女": "好人阵营", "噩梦之影": "狼人阵营", "画皮": "狼人阵营", "食尸鬼": "好人阵营", "盗贼": "变动阵营", "鬼魂新娘": "第三方", "白昼学者": "好人阵营", "寂夜导师": "狼人阵营", "兔子": "好人阵营", "企鹅": "好人阵营", "狐狸": "好人阵营", "乌鸦": "好人阵营", "觉醒预言家": "好人阵营", "魔镜少女": "好人阵营", "纯白之女": "好人阵营", "守墓人": "好人阵营", "孤独少女": "变动阵营", "狼美人": "狼人阵营", "隐狼": "狼人阵营", "觉醒隐狼": "狼人阵营", "咒狐": "第三方", "黑市商人": "好人阵营", "狼兄": "狼人阵营", "狼弟": "狼人阵营", "奇迹商人": "好人阵营", "觉醒狼王": "狼人阵营", "邪恶商人": "狼人阵营", "侦察者": "好人阵营", "刺客": "狼人阵营", "间谍": "狼人阵营", "黑蝙蝠": "狼人阵营", "狼枪": "狼人阵营", "盗宝": "狼人阵营", "石像鬼": "狼人阵营", "觉醒摄梦人": "好人阵营", "觉醒女巫": "好人阵营", "魔术师": "好人阵营", "丘比特": "第三方", "骑士": "好人阵营", "齐天大圣": "好人阵营", "暗黑悟空": "狼人阵营", "天命圣僧": "好人阵营", "剪烛人": "好人阵营", "烟烛": "狼人阵营", "保佑者": "好人阵营", "毒魂烛台": "好人阵营", "蚀日侍女": "狼人阵营", "流光伯爵": "好人阵营", "名媛": "好人阵营", "月灵": "狼人阵营", "食梦貘": "狼人阵营", "灯影预言家": "好人阵营", "狼巫": "狼人阵营", "蚀时狼妃": "狼人阵营", "九尾": "好人阵营", "觉醒守卫": "好人阵营", "白泽": "好人阵营", "觉醒猎人": "好人阵营", "觉醒狼美人": "狼人阵营", "定序王子": "好人阵营", "诡术师": "好人阵营", "影子": "好人阵营", "复仇者": "变动阵营", "寻香魅影": "狼人阵营", "捣蛋鬼": "狼人阵营", "猎魔人": "好人阵营", "觉醒愚者": "好人阵营", "夜之贵族": "狼人阵营", "觉醒骑士": "好人阵营", "复制人": "好人阵营", "潜行狼": "狼人阵营", "魅魔": "第三方", "伪装者": "狼人阵营", "神探": "好人阵营", "变化者": "狼人阵营", "侦探": "好人阵营", "蜂之狂猎": "好人阵营", "恶灵骑士": "狼人阵营", "毒师": "好人阵营", "黑暗镜": "狼人阵营", "光明镜": "好人阵营", "狼妖": "狼人阵营", "暗恋者": "好人阵营", "幻术师": "狼人阵营", "殉道者": "好人阵营", "剧作家": "好人阵营", "异怪王子": "狼人阵营", "典狱长": "狼人阵营", "天眼": "好人阵营", "祈求者": "变动阵营", "恶魔": "狼人阵营"};
+
+/* ===================== 工具 / 哈希 / 随机 ===================== */
+const $ = s => document.querySelector(s);
+const enc = new TextEncoder();
+
+// 32 位循环右移
+function rotr(x,n){ return (x>>>n)|(x<<(32-n)); }
+
+// SHA-256（纯 JS，支持 UTF-8，file:// 也可用）
+const _K = [
+ 0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+ 0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+ 0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+ 0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+ 0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+ 0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+ 0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+ 0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+function sha256(str){
+  const bytes = enc.encode(str); const l = bytes.length;
+  const withOne = l + 1;
+  const padLen = ((56 - (withOne % 64)) + 64) % 64;
+  const total = withOne + padLen + 8;
+  const buf = new Uint8Array(total); buf.set(bytes); buf[l] = 0x80;
+  const dv = new DataView(buf.buffer);
+  const bitLen = l * 8;
+  dv.setUint32(total-8, Math.floor(bitLen / 4294967296));
+  dv.setUint32(total-4, bitLen >>> 0);
+  let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const w = new Uint32Array(64);
+  for (let off=0; off<total; off+=64){
+    for (let i=0;i<16;i++) w[i]=dv.getUint32(off+i*4);
+    for (let i=16;i<64;i++){
+      const s0 = rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3);
+      const s1 = rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10);
+      w[i] = (w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let [a,b,c,d,e,f,g,h] = H;
+    for (let i=0;i<64;i++){
+      const S1 = rotr(e,6)^rotr(e,11)^rotr(e,25);
+      const ch = (e&f)^((~e)&g);
+      const t1 = (h+S1+ch+_K[i]+w[i])|0;
+      const S0 = rotr(a,2)^rotr(a,13)^rotr(a,22);
+      const maj = (a&b)^(a&c)^(b&c);
+      const t2 = (S0+maj)|0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=b; b=a; a=(t1+t2)|0;
+    }
+    H[0]=(H[0]+a)|0; H[1]=(H[1]+b)|0; H[2]=(H[2]+c)|0; H[3]=(H[3]+d)|0;
+    H[4]=(H[4]+e)|0; H[5]=(H[5]+f)|0; H[6]=(H[6]+g)|0; H[7]=(H[7]+h)|0;
+  }
+  return H.map(x => (x>>>0).toString(16).padStart(8,'0')).join('');
+}
+
+// 无偏 randBelow(n)（系统熵）
+function randBelow(n){
+  const max = Math.floor(4294967296 / n) * n;
+  const b = new Uint32Array(1); let v;
+  do { crypto.getRandomValues(b); v = b[0]; } while (v >= max);
+  return v % n;
+}
+// Fisher–Yates，与 Python secrets.randbelow 版本一致
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1; i>0; i--){ const j = randBelow(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+function nonceHex(){
+  const b = new Uint8Array(16); crypto.getRandomValues(b);
+  return [...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+// 按 Unicode 码点比较（与 Python str 排序一致）
+function cmpCP(a,b){
+  const A=Array.from(a), B=Array.from(b), n=Math.min(A.length,B.length);
+  for (let i=0;i<n;i++){ const ca=A[i].codePointAt(0), cb=B[i].codePointAt(0); if(ca!==cb) return ca-cb; }
+  return A.length-B.length;
+}
+const sortedCP = arr => arr.slice().sort(cmpCP);
+
+// 规范化字符串（与 dealer.py 的 _canonical 完全一致）
+function canonical(players, slots, mode, assignment){
+  const lines = [mode];
+  lines.push(sortedCP(players).join("\n"));
+  lines.push("---");
+  lines.push(slots.join("\n"));
+  lines.push("---");
+  if (mode === "seats"){
+    const a = assignment.slice().sort((x,y)=> x.seat - y.seat);
+    lines.push(a.map(x => x.seat + "\t" + x.player + "\t" + x.role).join("\n"));
+  } else {
+    const a = assignment.slice().sort((x,y)=> cmpCP(x.player, y.player));
+    lines.push(a.map(x => x.player + "\t" + x.role).join("\n"));
+  }
+  return lines.join("\n");
+}
+const commitOf = (nonce, canon) => sha256(nonce + "|" + canon);
+
+// 身份构成文本解析（与 dealer.py 的 parse_roles_text 一致）
+function parseRolesText(text){
+  const out = [];
+  (text||"").trim().split(/[\s,，、]+/).forEach(tok=>{
+    tok = tok.trim(); if(!tok) return;
+    let m, name, cnt;
+    if ((m = tok.match(/^(.*?)[×xX]\s*(\d+)$/))) { name=m[1].trim(); cnt=+m[2]; }
+    else if ((m = tok.match(/^(\d+)\s*[×xX]\s*(.+)$/))) { name=m[2].trim(); cnt=+m[1]; }
+    else if ((m = tok.match(/^(.+?)(\d+)$/))) { name=m[1].trim(); cnt=+m[2]; }
+    else if ((m = tok.match(/^(\d+)(.+)$/))) { name=m[2].trim(); cnt=+m[1]; }
+    else { name=tok; cnt=1; }
+    if (!name) return;
+    for (let i=0;i<Math.max(1,cnt);i++) out.push(name);
+  });
+  return out;
+}
+
+/* ===================== 状态 & 渲染 ===================== */
+let currentSlots = [];
+let mode = "roles";
+let currentSeal = null;
+
+function compositionHTML(slots){
+  const m = new Map();
+  for (const r of slots) m.set(r, (m.get(r)||0)+1);
+  return [...m.entries()].map(([r,c]) =>
+    `<span class="chip">${esc(r)}${c>1?" ×"+c:""}</span>`).join("");
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+const FACTOR_COLOR = {
+  "好人阵营":"--blue", "狼人阵营":"--red", "第三方":"--purple", "变动阵营":"--gold"
+};
+function factionDot(role){
+  const f = FACTION[role] || "";
+  const v = FACTOR_COLOR[f] || "--faint";
+  return `<span class="fdot" style="background:var(${v})"></span>`;
+}
+
+function renderTable(target, seal){
+  const seats = seal.mode === "seats";
+  let html = "<table><thead><tr>";
+  html += seats ? "<th>座位</th><th>玩家</th><th>身份</th><th>阵营</th>"
+                : "<th>玩家</th><th>身份</th><th>阵营</th>";
+  html += "</tr></thead><tbody>";
+  let rows = seal.assignment.slice();
+  if (seats) rows.sort((a,b)=>a.seat-b.seat);
+  else rows.sort((a,b)=> cmpCP(a.player,b.player));
+  for (const a of rows){
+    const fac = FACTION[a.role] || "";
+    if (seats) html += `<tr><td class="seat">${a.seat}</td><td>${esc(a.player)}</td>`
+                     + `<td class="role">${factionDot(a.role)}${esc(a.role)}</td>`
+                     + `<td class="fname">${esc(fac)}</td></tr>`;
+    else html += `<tr><td>${esc(a.player)}</td>`
+               + `<td class="role">${factionDot(a.role)}${esc(a.role)}</td>`
+               + `<td class="fname">${esc(fac)}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  target.innerHTML = html;
+}
+
+/* ===================== UI 事件 ===================== */
+function populateBoards(){
+  const sel = $("#board");
+  let html = `<option value="__custom__">— 自定义身份构成 —</option>`;
+  for (const name of Object.keys(BOARDS)) html += `<option value="${esc(name)}">${esc(name)}</option>`;
+  sel.innerHTML = html;
+  sel.value = "__custom__";
+}
+
+function updateSlots(){
+  const val = $("#board").value;
+  if (val === "__custom__"){
+    $("#customWrap").classList.remove("hidden");
+    currentSlots = parseRolesText($("#customRoles").value);
+  } else {
+    $("#customWrap").classList.add("hidden");
+    currentSlots = (BOARDS[val] || []).slice();
+  }
+  $("#composition").innerHTML = compositionHTML(currentSlots);
+  updateCount();
+}
+
+function playersList(){
+  return $("#players").value.split("\n").map(s=>s.trim()).filter(Boolean);
+}
+function updateCount(){
+  const n = playersList().length, need = currentSlots.length;
+  const el = $("#playerCount");
+  el.textContent = `${n} / ${need}`;
+  el.className = "count " + (n===need && need>0 ? "ok":"bad");
+  $("#dealBtn").disabled = !(n===need && need>0);
+}
+
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+function doDeal(){
+  const players = playersList();
+  const slots = currentSlots.slice();
+  if (players.length !== slots.length){ toast("人数与身份数不一致"); return; }
+
+  // 与 dealer.py 的 deal() 一致
+  const perm = shuffle(players);
+  const assignment = slots.map((role,i)=>{
+    const item = { player: perm[i], role };
+    if (mode === "seats") item.seat = i + 1;
+    return item;
+  });
+  const canon = canonical(players, slots, mode, assignment);
+  const nonce = nonceHex();
+  const commit = commitOf(nonce, canon);
+  currentSeal = { deal_id: nonce.slice(0,8), mode, players, slots, assignment, nonce, commit };
+
+  $("#hashText").textContent = commit;
+  $("#revealWrap").classList.add("hidden");
+  $("#resultCard").classList.remove("hidden");
+  $("#resultCard").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function doReveal(){
+  if (!currentSeal) return;
+  renderTable($("#tableWrap"), currentSeal);
+  const canon = canonical(currentSeal.players, currentSeal.slots, currentSeal.mode, currentSeal.assignment);
+  const ok = commitOf(currentSeal.nonce, canon) === currentSeal.commit;
+  const box = $("#verifyBox");
+  box.className = "verify " + (ok?"ok":"bad");
+  box.innerHTML = ok
+    ? `<span class="ico">✓</span><span>校验通过：结果与公示承诺一致，未被篡改</span>`
+    : `<span class="ico">✗</span><span>校验失败：结果与承诺不一致！</span>`;
+  $("#revealWrap").classList.remove("hidden");
+}
+
+function copyHash(){
+  const text = $("#hashText").textContent;
+  if (text && text !== "—"){
+    navigator.clipboard?.writeText(text).then(()=>toast("已复制承诺哈希"))
+      .catch(()=>toast("复制失败，请手动选择"));
+  }
+}
+
+function downloadSeal(){
+  if (!currentSeal) return;
+  const blob = new Blob([JSON.stringify(currentSeal, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "ww_deal_" + currentSeal.deal_id + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast("已下载密封文件");
+}
+
+function resetAll(){
+  currentSeal = null;
+  $("#resultCard").classList.add("hidden");
+  $("#revealWrap").classList.add("hidden");
+  $("#hashText").textContent = "—";
+  $("#players").value = "";
+  updateCount();
+}
+
+function importSeal(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const seal = JSON.parse(reader.result);
+      if (!seal.assignment || !seal.slots || !seal.players || !seal.commit){
+        toast("不是有效的密封文件"); return;
+      }
+      renderTable($("#importTable"), seal);
+      const canon = canonical(seal.players, seal.slots, seal.mode, seal.assignment);
+      const ok = commitOf(seal.nonce, canon) === seal.commit;
+      const box = $("#importVerify");
+      box.className = "verify " + (ok?"ok":"bad");
+      box.innerHTML = ok
+        ? `<span class="ico">✓</span><span>校验通过（deal_id ${esc(seal.deal_id||"")}）：与承诺一致，未被篡改</span>`
+        : `<span class="ico">✗</span><span>校验失败：与承诺不一致，文件可能被改动</span>`;
+      $("#importResult").classList.remove("hidden");
+    } catch(e){ toast("读取失败：" + e.message); }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+/* ===================== 初始化 ===================== */
+$("#board").addEventListener("change", updateSlots);
+$("#customRoles").addEventListener("input", updateSlots);
+$("#players").addEventListener("input", updateCount);
+$("#modeSeg").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  mode = b.dataset.mode;
+  [...$("#modeSeg").children].forEach(x=>x.classList.toggle("active", x===b));
+});
+$("#dealBtn").addEventListener("click", doDeal);
+$("#revealBtn").addEventListener("click", doReveal);
+$("#copyHash").addEventListener("click", copyHash);
+$("#downloadSeal").addEventListener("click", downloadSeal);
+$("#resetBtn").addEventListener("click", resetAll);
+$("#importFile").addEventListener("change", e=>{
+  if (e.target.files && e.target.files[0]) importSeal(e.target.files[0]);
+});
+
+populateBoards();
+updateSlots();
+
+// 自检：与已知 Python 结果对拍（开发用，可在控制台看到）
+try {
+  const t = canonical(["b","a"], ["狼人","村民"], "roles", [{player:"a",role:"村民"},{player:"b",role:"狼人"}]);
+  console.assert(t === "roles\na\nb\n---\n狼人\n村民\n---\na\t村民\nb\t狼人", "canonical mismatch");
+} catch(e){}
+</script>
+</body>
+</html>
